@@ -1,29 +1,31 @@
 package com.study.htmlCoding.service.impl;
 
-import com.study.htmlCoding.dao.UserDao;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.study.htmlCoding.dto.LoginResultDTO;
 import com.study.htmlCoding.dto.UserDTO;
 import com.study.htmlCoding.entity.User;
+import com.study.htmlCoding.mapper.UserMapper;
 import com.study.htmlCoding.service.ILoginService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import java.util.List;
 import java.util.UUID;
 
 @Service
-public class LoginServiceImpl implements ILoginService {
-
-    @Resource
-    private UserDao userDao;
+public class LoginServiceImpl extends ServiceImpl<UserMapper, User> implements ILoginService {
 
     @Override
     public LoginResultDTO login(String username, String password) {
         System.out.println(username);
-        User user = userDao.login(username, password);
-        System.out.println(user);
-        if(user == null){
+        QueryWrapper<User> wrapper = new QueryWrapper<User>();
+        wrapper.eq("username", username).eq("passwords", password);
+        List<User> users = baseMapper.selectList(wrapper);
+        if(users.isEmpty()){
             return new LoginResultDTO(401, null);
         }
+        User user = users.get(0);
+        System.out.println(user);
         UserDTO userDTO = new UserDTO();
         userDTO.setId(user.getSchoolId());
         userDTO.setUsername(user.getUsername());

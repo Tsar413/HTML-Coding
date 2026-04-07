@@ -1,5 +1,8 @@
 package com.study.htmlCoding.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -7,18 +10,22 @@ import javax.persistence.Table;
 
 @Entity
 @Table(name = "tb_test_case")
+@TableName("tb_test_case")
 public class TestCase {
     @Id
     @Column(name = "test_case_id")
+    @TableField("test_case_id")
     private Long testCaseId;
 
     @Column(name = "problem_id")
+    @TableField("problem_id")
     private Integer problemId;
 
     @Column(name = "input")
     private String input;
 
     @Column(name = "expected_output")
+    @TableField("expected_output")
     private String expectedOutput;
 
     @Column(name = "deleted")

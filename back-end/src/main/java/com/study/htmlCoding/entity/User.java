@@ -1,14 +1,19 @@
 package com.study.htmlCoding.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import javax.persistence.*;
 
 @Entity
 @Table(name = "tb_user")
+@TableName("tb_user")
 public class User {
     @Id
     private Integer id;
 
     @Column(name = "school_id")
+    @TableField("school_id")
     private String schoolId;
 
     @Column(name = "username")
@@ -21,9 +26,11 @@ public class User {
     private String identity;
 
     @Column(name = "class_id")
+    @TableField("class_id")
     private String class_id;
 
     @Column(name = "teacher_id")
+    @TableField("teacher_id")
     private String teacher_id;
 
     public User() {

@@ -1,30 +1,36 @@
 package com.study.htmlCoding.entity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+
+import javax.persistence.*;
 
 @Entity
 @Table(name = "tb_problem")
+@TableName("tb_problem")
 public class Problem {
     @Id
     @Column(name = "problem_id")
+    @TableField("problem_id")
     private Integer problemId;
 
     @Column(name = "title")
     private String title;
 
-    @Column(name = "description")
+    @Lob
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     private String description;
 
     @Column(name = "return_type")
+    @TableField("return_type")
     private String returnType;
 
     @Column(name = "method_name")
+    @TableField("method_name")
     private String methodName;
 
     @Column(name = "method_signature_params")
+    @TableField("method_signature_params")
     private String methodSignatureParams;
 
     @Column(name = "deleted")

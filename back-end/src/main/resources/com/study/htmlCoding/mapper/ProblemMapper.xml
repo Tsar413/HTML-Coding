@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.htmlCoding.mapper.ProblemMapper">
+
+    <select id="getMaxProblemId" resultType="Integer">
+        select max(problem_id) from tb_problem
+    </select>
+
+    <update id="deleteProblem">
+        update tb_problem set deleted = 0 where problem_id = #{problemId}
+    </update>
+
+</mapper>

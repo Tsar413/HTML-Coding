@@ -1,31 +1,41 @@
 package com.study.htmlCoding.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import javax.persistence.*;
 
 @Entity
 @Table(name = "submission_record")
+@TableName("submission_record")
 public class SubmissionRecords {
     @Id
     @Column(name = "submission_record_id")
+    @TableField("submission_record_id")
     private Long submissionRecordId;
 
     @Column(name = "school_id")
+    @TableField("school_id")
     private String schoolId;
 
     @Column(name = "problem_id")
+    @TableField("problem_id")
     private String problemId; // 问题ID
 
     @Lob
     @Column(name = "submission_code", columnDefinition = "LONGTEXT")
+    @TableField("submission_code")
     private String submissionCode; // 提交代码
 
     @Column(name = "passed")
     private Boolean passed; // 是否通过
 
     @Column(name = "passed_number")
+    @TableField("passed_number")
     private Integer passedNumber; // 通过测试用例数量
 
     @Column(name = "all_number")
+    @TableField("all_number")
     private Integer allNumber; // 所有测试用例数目
 
     @Column(name = "message")
@@ -35,15 +45,19 @@ public class SubmissionRecords {
     private String input; // 输入
 
     @Column(name = "expected_output")
+    @TableField("expected_output")
     private String expectedOutput; // 预期输出
 
     @Column(name = "actual_output")
+    @TableField("actual_output")
     private String actualOutput; // 实际输出
 
     @Column(name = "error_info")
+    @TableField("error_info")
     private String errorInfo; // 错误信息
 
     @Column(name = "time_used_ms")
+    @TableField("time_used_ms")
     private Long timeUsedMs; // 执行时间
 
     public SubmissionRecords() {

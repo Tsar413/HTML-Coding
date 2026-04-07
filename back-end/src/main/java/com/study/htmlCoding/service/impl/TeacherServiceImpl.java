@@ -1,14 +1,16 @@
 package com.study.htmlCoding.service.impl;
 
-import com.study.htmlCoding.dao.ProblemDao;
-import com.study.htmlCoding.dao.SubmissionRecordsDao;
-import com.study.htmlCoding.dao.TestCaseDao;
-import com.study.htmlCoding.dao.UserDao;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.study.htmlCoding.dto.*;
 import com.study.htmlCoding.entity.Problem;
 import com.study.htmlCoding.entity.SubmissionRecords;
 import com.study.htmlCoding.entity.TestCase;
 import com.study.htmlCoding.entity.User;
+import com.study.htmlCoding.mapper.ProblemMapper;
+import com.study.htmlCoding.mapper.SubmissionRecordsMapper;
+import com.study.htmlCoding.mapper.TestCaseMapper;
+import com.study.htmlCoding.mapper.UserMapper;
 import com.study.htmlCoding.service.ITeacherService;
 import com.study.htmlCoding.util.GenerateMethodSignatureParams;
 import org.springframework.stereotype.Service;
@@ -21,16 +23,16 @@ import java.util.List;
 public class TeacherServiceImpl implements ITeacherService {
 
     @Resource
-    private ProblemDao problemDao;
+    private ProblemMapper problemMapper;
 
     @Resource
-    private TestCaseDao testCaseDao;
+    private TestCaseMapper testCaseMapper;
 
     @Resource
-    private UserDao userDao;
+    private UserMapper userMapper;
 
     @Resource
-    private SubmissionRecordsDao submissionRecordsDao;
+    private SubmissionRecordsMapper submissionRecordsMapper;
 
     /**
      * 页面提交请求获取问题集
@@ -43,7 +45,9 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 获取所有问题
-        List<Problem> allProblems = problemDao.getAllProblems();
+        QueryWrapper<Problem> wrapper = new QueryWrapper<Problem>();
+        wrapper.eq("deleted", "1");
+        List<Problem> allProblems = problemMapper.selectList(wrapper);
         // 把参数换成正常格式
         for (Problem problem : allProblems) {
             String[] methodSignatureParams = problem.getMethodSignatureParams().split(";");
@@ -84,13 +88,17 @@ public class TeacherServiceImpl implements ITeacherService {
         // 处理提交的problem
         Problem newProblem = changeProblemDTO.getProblem();
         String methodSignatureParams = GenerateMethodSignatureParams.generateMethodSignatureParams(newProblem.getMethodSignatureParams());
-        Integer maxProblemId = problemDao.getMaxProblemId();
+        Integer maxProblemId = problemMapper.getMaxProblemId();
         if(maxProblemId == null){
             maxProblemId = 1;
         } else {
             maxProblemId++;
         }
-        Integer i = problemDao.saveNewProblem(maxProblemId, newProblem.getDescription(), newProblem.getTitle(), newProblem.getMethodName(), methodSignatureParams, newProblem.getReturnType());
+        newProblem.setProblemId(maxProblemId);
+        newProblem.setMethodSignatureParams(methodSignatureParams);
+        newProblem.setDeleted(true);
+        int i = problemMapper.insert(newProblem);
+//        Integer i = problemDao.saveNewProblem(maxProblemId, newProblem.getDescription(), newProblem.getTitle(), newProblem.getMethodName(), methodSignatureParams, newProblem.getReturnType());
         if(i == 1){
             return new ProblemConsultDTO(200, null);
         }
@@ -111,7 +119,11 @@ public class TeacherServiceImpl implements ITeacherService {
         // 修改提交的problem
         Problem updateProblem = changeProblemDTO.getProblem();
         String methodSignatureParams = GenerateMethodSignatureParams.generateMethodSignatureParams(updateProblem.getMethodSignatureParams());
-        Integer i = problemDao.updateProblem(updateProblem.getProblemId(), updateProblem.getDescription(), updateProblem.getTitle(), updateProblem.getMethodName(), methodSignatureParams, updateProblem.getReturnType());
+        updateProblem.setMethodSignatureParams(methodSignatureParams);
+        UpdateWrapper<Problem> wrapper = new UpdateWrapper<Problem>();
+        wrapper.eq("problem_id", updateProblem.getProblemId());
+        int i = problemMapper.update(updateProblem, wrapper);
+//        Integer i = problemDao.updateProblem(updateProblem.getProblemId(), updateProblem.getDescription(), updateProblem.getTitle(), updateProblem.getMethodName(), methodSignatureParams, updateProblem.getReturnType());
         if(i == 1){
             return new ProblemConsultDTO(200, null);
         }
@@ -129,7 +141,9 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 删除提交的problem 具体方法为软删除 将deleted修改为0
-        Integer i = problemDao.deleteProblem(problemWithIdDTO.getProblemId());
+
+//        Integer i = problemDao.deleteProblem(problemWithIdDTO.getProblemId());
+        int i = problemMapper.deleteProblem(problemWithIdDTO.getProblemId());
         if(i == 1){
             return new ProblemConsultDTO(200, null);
         }
@@ -147,7 +161,9 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 查询TestCases
-        return new TestCaseConsultDTO(200, testCaseDao.getTestCasesWithId(String.valueOf(problemWithIdDTO.getProblemId())));
+        QueryWrapper<TestCase> wrapper = new QueryWrapper<TestCase>();
+        wrapper.eq("problem_id", problemWithIdDTO.getProblemId()).eq("deleted", "1");
+        return new TestCaseConsultDTO(200, testCaseMapper.selectList(wrapper));
     }
 
     /**
@@ -162,13 +178,16 @@ public class TeacherServiceImpl implements ITeacherService {
 
         // 添加新的测试用例
         TestCase testCase = changeTestCaseDTO.getTestCase();
-        Long maxTestCaseId = testCaseDao.getMaxTestCaseId();
+        Long maxTestCaseId = testCaseMapper.getMaxTestCaseId();
         if(maxTestCaseId == null){
             maxTestCaseId = 1L;
         } else {
             maxTestCaseId++;
         }
-        Integer i = testCaseDao.saveNewTestCase(maxTestCaseId, testCase.getExpectedOutput(), testCase.getInput(), testCase.getProblemId());
+        testCase.setTestCaseId(maxTestCaseId);
+        testCase.setDeleted(true);
+        int i = testCaseMapper.insert(testCase);
+//        Integer i = testCaseDao.saveNewTestCase(maxTestCaseId, testCase.getExpectedOutput(), testCase.getInput(), testCase.getProblemId());
         if(i == 1){
             return new TestCaseConsultDTO(200, null);
         }
@@ -187,7 +206,10 @@ public class TeacherServiceImpl implements ITeacherService {
 
         // 添加新的测试用例
         TestCase testCase = changeTestCaseDTO.getTestCase();
-        Integer i = testCaseDao.updateTestCase(testCase.getTestCaseId(), testCase.getExpectedOutput(), testCase.getInput());
+        UpdateWrapper<TestCase> wrapper = new UpdateWrapper<TestCase>();
+        wrapper.eq("test_case_id", testCase.getTestCaseId());
+        int i = testCaseMapper.update(testCase, wrapper);
+//        Integer i = testCaseDao.updateTestCase(testCase.getTestCaseId(), testCase.getExpectedOutput(), testCase.getInput());
         if(i == 1){
             return new TestCaseConsultDTO(200, null);
         }
@@ -205,7 +227,8 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 添加新的测试用例
-        Integer i = testCaseDao.deleteTestCase(testCaseWithIdDTO.getTestCaseId());
+        int i = testCaseMapper.deleteTestCase(testCaseWithIdDTO.getTestCaseId());
+//        Integer i = testCaseDao.deleteTestCase(testCaseWithIdDTO.getTestCaseId());
         if(i == 1){
             return new TestCaseConsultDTO(200, null);
         }
@@ -224,7 +247,9 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 获取教师教授班级的学生
-        return new StudentResultDTO(200, userDao.getStudentsBySchoolId(userDTO.getSchoolId()));
+        QueryWrapper<User> wrapper = new QueryWrapper<User>();
+        wrapper.eq("teacher_id", userDTO.getSchoolId());
+        return new StudentResultDTO(200, userMapper.selectList(wrapper));
     }
 
     /**
@@ -238,11 +263,16 @@ public class TeacherServiceImpl implements ITeacherService {
         // TODO token处理
 
         // 获取教师教授班级的学生
-        List<User> students = userDao.getStudentsBySchoolId(userDTO.getSchoolId());
+        QueryWrapper<User> wrapper = new QueryWrapper<User>();
+        wrapper.eq("teacher_id", userDTO.getSchoolId());
+        List<User> students = userMapper.selectList(wrapper);
         // 获取学生的答题记录
         List<SubmissionRecords> submissionRecords = new ArrayList<SubmissionRecords>();
         for (User user : students){
-            submissionRecords.addAll(submissionRecordsDao.getSubmissionRecordBySchoolId(user.getSchoolId()));
+            QueryWrapper<SubmissionRecords> wrapper1 = new QueryWrapper<SubmissionRecords>();
+            wrapper1.eq("school_id", user.getSchoolId());
+            submissionRecords.addAll(submissionRecordsMapper.selectList(wrapper1));
+//            submissionRecords.addAll(submissionRecordsDao.getSubmissionRecordBySchoolId(user.getSchoolId()));
         }
         SubmissionHistoryDTO submissionHistoryDTO = new SubmissionHistoryDTO(200, submissionRecords);
         System.out.println(submissionHistoryDTO);

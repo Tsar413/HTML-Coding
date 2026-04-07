@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.htmlCoding.mapper.SubmissionRecordsMapper">
+
+    <select id="getMaxSubmissionRecordId" resultType="Long">
+        select max(submission_record_id) from submission_record
+    </select>
+
+    <insert id="saveNewSubmissionRecordPassed">
+        insert into submission_record(submission_record_id, school_id, problem_id, submission_code, passed, passed_number, all_number, message, time_used_ms)
+        values (#{submissionRecordId}, #{schoolId}, #{problemId}, #{submissionCode}, true, #{passedNumber}, #{allNumber}, '所有测试用例通过！', #{timeUsedMs})
+    </insert>
+
+    <insert id="saveNewSubmissionRecordFailed">
+        insert into submission_record(submission_record_id, school_id, problem_id, submission_code, passed, passed_number, all_number, message, input, expected_output, actual_output, error_info, time_used_ms)
+        values (#{submissionRecordId}, #{schoolId}, #{problemId}, #{submissionCode}, false, #{passedNumber}, #{allNumber}, #{message}, #{input}, #{expectedOutput}, #{actualOutput}, #{errorInfo}, #{timeUsedMs})
+    </insert>
+<!--    <update id="deleteTestCase">-->
+<!--        update tb_test_case set deleted = 0 where test_case_id = #{testCaseId}-->
+<!--    </update>-->
+
+</mapper>

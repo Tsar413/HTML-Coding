@@ -1,16 +1,19 @@
 package com.study.htmlCoding.service.impl;
 
-import com.study.htmlCoding.dao.ProblemDao;
-import com.study.htmlCoding.dao.SubmissionRecordsDao;
-import com.study.htmlCoding.dao.TestCaseDao;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.study.htmlCoding.dto.*;
 import com.study.htmlCoding.entity.Problem;
 import com.study.htmlCoding.entity.SubmissionRecords;
 import com.study.htmlCoding.entity.TestCase;
+import com.study.htmlCoding.mapper.ProblemMapper;
+import com.study.htmlCoding.mapper.SubmissionRecordsMapper;
+import com.study.htmlCoding.mapper.TestCaseMapper;
 import com.study.htmlCoding.service.IStudentService;
 import com.study.htmlCoding.util.GenerateMainFunction;
 import org.springframework.stereotype.Service;
+import org.springframework.core.io.ClassPathResource;
 
+import java.nio.file.StandardCopyOption;
 import javax.annotation.Resource;
 import java.io.*;
 import java.nio.file.Files;
@@ -24,19 +27,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class StudentServiceImpl implements IStudentService {
 
     @Resource
-    private ProblemDao problemDao;
+    private ProblemMapper problemMapper;
 
     @Resource
-    private TestCaseDao testCaseDao;
+    private TestCaseMapper testCaseMapper;
 
     @Resource
-    private SubmissionRecordsDao submissionRecordsDao;
+    private SubmissionRecordsMapper submissionRecordsMapper;
 
     // 编译和运行 Java 代码的临时目录
     private static final String WORK_DIR_PREFIX = System.getProperty("java.io.tmpdir") + File.separator + "judge_work_";
     private static final long TIME_LIMIT_MS = 2000; // 单个测试用例执行时间限制（毫秒）
     private static final String MAIN_CLASS_NAME = "Main"; // 假设学生提交的代码主类名为 Main
-    private static final String HUTOOL_ALL_JAR_PATH = "F:\\JavaProgram\\java_workspace\\study-htmlCoding\\src\\main\\java\\com\\study\\htmlCoding\\lib\\hutool-all-5.7.17.jar";
+//    private static final String HUTOOL_ALL_JAR_PATH = "F:\\JavaProgram\\java_workspace\\study-htmlCoding\\src\\main\\java\\com\\study\\htmlCoding\\lib\\hutool-all-5.7.17.jar";
+    private static final String HUTOOL_JAR_CLASSPATH = "lib/hutool-all-5.7.17.jar";
 
     /**
      * 对学生提交的 Java 代码进行编译和判题
@@ -53,7 +57,8 @@ public class StudentServiceImpl implements IStudentService {
         Path workDir = Paths.get(workDirPath);
         CodeResultDTO codeResultDTO = new CodeResultDTO();
 
-        Long maxSubmissionId = submissionRecordsDao.getMaxSubmissionRecordId();
+        Long maxSubmissionId = submissionRecordsMapper.getMaxSubmissionRecordId();
+//        Long maxSubmissionId = submissionRecordsDao.getMaxSubmissionRecordId();
         if(maxSubmissionId == null){
             maxSubmissionId = 1L;
         } else {
@@ -71,14 +76,19 @@ public class StudentServiceImpl implements IStudentService {
             Files.createDirectories(workDir); // 创建工作目录
 
             // 1. 动态生成完整的Java代码
-            String fullCode = GenerateMainFunction.generateMainFunction(codeRequestDTO.getCode(), problemDao.getProblemWithId(codeRequestDTO.getProblemId()));
+            QueryWrapper<Problem> wrapper = new QueryWrapper<Problem>();
+            wrapper.eq("problem_id", codeRequestDTO.getProblemId());
+            String fullCode = GenerateMainFunction.generateMainFunction(codeRequestDTO.getCode(), problemMapper.selectOne(wrapper));
+//            String fullCode = GenerateMainFunction.generateMainFunction(codeRequestDTO.getCode(), problemDao.getProblemWithId(codeRequestDTO.getProblemId()));
             System.out.println(fullCode);
             Path sourceFile = workDir.resolve(MAIN_CLASS_NAME + ".java");
             Files.write(sourceFile, fullCode.getBytes());
             System.out.println("代码已保存到: " + sourceFile.toAbsolutePath());
 
             // 2. 编译代码
-            String classpath = HUTOOL_ALL_JAR_PATH + File.pathSeparator + workDir.toAbsolutePath();
+//            String classpath = HUTOOL_ALL_JAR_PATH + File.pathSeparator + workDir.toAbsolutePath();
+            String hutoolJarPath = prepareHutoolJar(workDir);
+            String classpath = hutoolJarPath + File.pathSeparator + workDir.toAbsolutePath();
             Process compileProcess = Runtime.getRuntime().exec(new String[]{"javac", "-encoding", "UTF-8", "-classpath", classpath, sourceFile.toAbsolutePath().toString()}, null, workDir.toFile());
             String compileOutput = readProcessOutput(compileProcess.getErrorStream());
             int compileExitCode = compileProcess.waitFor();
@@ -90,10 +100,14 @@ public class StudentServiceImpl implements IStudentService {
                 codeResultDTO.setMessage("编译错误");
                 codeResultDTO.setCompileOutput(compileOutput);
                 // 保存历史记录
-                submissionRecordsDao.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
+                submissionRecordsMapper.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
                         codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), null, null,
                         codeResultDTO.getMessage(), null, null, null,
-                        codeResultDTO.getCompileOutput(), null); // 保存编译错误的代码
+                        codeResultDTO.getCompileOutput(), null);// 保存编译错误的代码
+//                submissionRecordsDao.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
+//                        codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), null, null,
+//                        codeResultDTO.getMessage(), null, null, null,
+//                        codeResultDTO.getCompileOutput(), null); // 保存编译错误的代码
                 return codeResultDTO;
             }
             System.out.println("代码编译成功！");
@@ -101,7 +115,10 @@ public class StudentServiceImpl implements IStudentService {
             // 3. 执行代码并进行参数化测试
             boolean allPassed = true;
             // 获取对应问题的全部测试用例
-            List<TestCase> testCases = testCaseDao.getTestCasesWithId(codeRequestDTO.getProblemId());
+            QueryWrapper<TestCase> wrapper1 = new QueryWrapper<TestCase>();
+            wrapper1.eq("problem_id", codeRequestDTO.getProblemId()).eq("deleted", "1");
+            List<TestCase> testCases = testCaseMapper.selectList(wrapper1);
+//            List<TestCase> testCases = testCaseDao.getTestCasesWithId(codeRequestDTO.getProblemId());
             // 保存全部的测试结果
             List<TestCaseResultDTO> testCaseResults = new ArrayList<TestCaseResultDTO>();
             // 如果出现执行错误，则只保存第一次出现错误的输入与输出
@@ -283,13 +300,20 @@ public class StudentServiceImpl implements IStudentService {
 
             if(!isPassed){
                 // 保存测试失败的代码
-                submissionRecordsDao.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
+//                submissionRecordsDao.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
+//                        codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), codeResultDTO.getPassedNumber(), codeResultDTO.getAllNumber(),
+//                        codeResultDTO.getMessage(), codeResultDTO.getInput(), codeResultDTO.getExpectedOutput(), codeResultDTO.getActualOutput(),
+//                        codeResultDTO.getCompileOutput(), codeResultDTO.getTimeUsedMs());
+                submissionRecordsMapper.saveNewSubmissionRecordFailed(maxSubmissionId, codeRequestDTO.getUserId(),
                         codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), codeResultDTO.getPassedNumber(), codeResultDTO.getAllNumber(),
                         codeResultDTO.getMessage(), codeResultDTO.getInput(), codeResultDTO.getExpectedOutput(), codeResultDTO.getActualOutput(),
                         codeResultDTO.getCompileOutput(), codeResultDTO.getTimeUsedMs());
             } else {
                 // 保存测试通过代码
-                submissionRecordsDao.saveNewSubmissionRecordPassed(maxSubmissionId, codeRequestDTO.getUserId(),
+//                submissionRecordsDao.saveNewSubmissionRecordPassed(maxSubmissionId, codeRequestDTO.getUserId(),
+//                        codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), codeResultDTO.getPassedNumber(),
+//                        codeResultDTO.getAllNumber(), codeResultDTO.getTimeUsedMs());
+                submissionRecordsMapper.saveNewSubmissionRecordPassed(maxSubmissionId, codeRequestDTO.getUserId(),
                         codeRequestDTO.getProblemId(), codeRequestDTO.getCode(), codeResultDTO.getPassedNumber(),
                         codeResultDTO.getAllNumber(), codeResultDTO.getTimeUsedMs());
             }
@@ -346,7 +370,10 @@ public class StudentServiceImpl implements IStudentService {
         // TODO token处理
 
         // 获取所有问题
-        List<Problem> allProblems = problemDao.getAllProblems();
+        QueryWrapper<Problem> wrapper = new QueryWrapper<Problem>();
+        wrapper.eq("deleted", "1");
+        List<Problem> allProblems = problemMapper.selectList(wrapper);
+//        List<Problem> allProblems = problemDao.getAllProblems();
         // 把参数换成正常格式
         for (Problem problem : allProblems) {
             String[] methodSignatureParams = problem.getMethodSignatureParams().split(";");
@@ -386,7 +413,10 @@ public class StudentServiceImpl implements IStudentService {
         // 获取全部查询记录
         SubmissionHistoryDTO submissionHistoryDTO = new SubmissionHistoryDTO();
         submissionHistoryDTO.setStatus(200);
-        submissionHistoryDTO.setSubmissionRecords(submissionRecordsDao.getSubmissionRecordByProblemIdSchoolId(codeRequestDTO.getUserId(), codeRequestDTO.getProblemId()));
+        QueryWrapper<SubmissionRecords> wrapper = new QueryWrapper<SubmissionRecords>();
+        wrapper.eq("school_id", codeRequestDTO.getUserId()).eq("problem_id", codeRequestDTO.getProblemId());
+        submissionHistoryDTO.setSubmissionRecords(submissionRecordsMapper.selectList(wrapper));
+//        submissionHistoryDTO.setSubmissionRecords(submissionRecordsDao.getSubmissionRecordByProblemIdSchoolId(codeRequestDTO.getUserId(), codeRequestDTO.getProblemId()));
         System.out.println(submissionHistoryDTO);
         return submissionHistoryDTO;
     }
@@ -404,9 +434,31 @@ public class StudentServiceImpl implements IStudentService {
         // 获取全部查询记录
         SubmissionHistoryDTO submissionHistoryDTO = new SubmissionHistoryDTO();
         submissionHistoryDTO.setStatus(200);
-        List<SubmissionRecords> submissions = submissionRecordsDao.getSubmissionRecordBySchoolId(userDTO.getId());
+        QueryWrapper<SubmissionRecords> wrapper = new QueryWrapper<SubmissionRecords>();
+        wrapper.eq("school_id", userDTO.getId()).orderByDesc("submission_record_id");
+        List<SubmissionRecords> submissions = submissionRecordsMapper.selectList(wrapper);
+//        List<SubmissionRecords> submissions = submissionRecordsDao.getSubmissionRecordBySchoolId(userDTO.getId());
         submissionHistoryDTO.setSubmissionRecords(submissions);
         System.out.println(submissionHistoryDTO);
         return submissionHistoryDTO;
+    }
+
+    /**
+     * 从 classpath 中提取 Hutool jar 到临时目录，返回可供 javac/java 使用的真实文件路径
+     */
+    private String prepareHutoolJar(Path workDir) throws IOException {
+        ClassPathResource resource = new ClassPathResource(HUTOOL_JAR_CLASSPATH);
+
+        if (!resource.exists()) {
+            throw new FileNotFoundException("未找到 Hutool 依赖文件: " + HUTOOL_JAR_CLASSPATH);
+        }
+
+        Path jarTarget = workDir.resolve("hutool-all-5.7.17.jar");
+
+        try (InputStream inputStream = resource.getInputStream()) {
+            Files.copy(inputStream, jarTarget, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return jarTarget.toAbsolutePath().toString();
     }
 }
